@@ -777,11 +777,9 @@ Sélectionnez la catégorie correspondant à votre demande.
 
     if (message.content.startsWith("!rename")) {
 
-        if (
-            !message.member.roles.cache.has(
-                STAFF_ROLE
-            )
-        ) return;
+        console.log(
+    message.member.roles.cache.map(r => r.id)
+);
 
         const args =
             message.content.split(" ").slice(1);
