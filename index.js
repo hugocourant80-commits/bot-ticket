@@ -1,9 +1,9 @@
 require("dotenv").config();
 
-const STAFF_ROLE = "1488885718213333046";
-const TICKET_CATEGORY = "1518341259721179196";
-const PANEL_CHANNEL = "1488885720427790431";
-const LOG_CHANNEL = "1518540087585931324";
+const STAFF_ROLE = "1519293827762884638";
+const TICKET_CATEGORY = "1519294600651608104";
+const PANEL_CHANNEL = "1519294465435631729";
+const LOG_CHANNEL = "1519294500118331432";
 
 const claimedBy = {};
 const ticketOwners = {};
@@ -31,7 +31,7 @@ const client = new Client({
     ]
 });
 
-client.once("ready", () => {
+client.once("clientReady", () => {
     console.log(`${client.user.tag} connecté !`);
 });
 
@@ -605,6 +605,8 @@ client.on("interactionCreate", async interaction => {
 });
 
 client.on("messageCreate", async message => {
+
+    console.log("Message reçu :", message.content);
 
     if (message.author.bot) return;
         // ================= !PANEL =================
