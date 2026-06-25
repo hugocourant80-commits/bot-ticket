@@ -1,32 +1,38 @@
 require("dotenv").config();
 
-const STAFF_ROLE = "1519293827762884638";
-const TICKET_CATEGORY = "1519294600651608104";
-const PANEL_CHANNEL = "1519294465435631729";
-const LOG_CHANNEL = "1519294500118331432";
+const express = require("express");
+const app = express();
 
-const claimedBy = {};
-const ticketOwners = {};
-const ticketReasons = {};
-const closedTickets = {};
+app.get("/", (req, res) => {
+    res.send("Bot en ligne");
+});
+
+app.listen(process.env.PORT || 3000, () => {
+    console.log("Serveur web démarré.");
+});
 
 const {
     Client,
     GatewayIntentBits,
     PermissionsBitField,
     ChannelType,
+    EmbedBuilder,
     ActionRowBuilder,
-    ButtonBuilder,
-    ButtonStyle,
     StringSelectMenuBuilder,
-    EmbedBuilder
+    ButtonBuilder,
+    ButtonStyle
 } = require("discord.js");
+
+const STAFF_ROLE = "1519293827762884638";
+const TICKET_CATEGORY = "1519294600651608104";
+const PANEL_CHANNEL = "1519294465435631729";
+const LOG_CHANNEL = "1519294500118331432";
 
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMembers,
         GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.GuildMembers,
         GatewayIntentBits.MessageContent
     ]
 });
@@ -34,582 +40,9 @@ const client = new Client({
 client.once("clientReady", () => {
     console.log(`${client.user.tag} connecté !`);
 });
-
-// ================= FORMULAIRES =================
-
-const forms = {
-
-    Deban: `# 🔓 Formulaire de Demande de Deban
-
-## 👤 Informations du joueur
-- Pseudo Roblox :
-- ID Roblox :
-- Pseudo Discord :
-- ID Discord :
-
-## 🚫 Informations du bannissement
-- Date du ban :
-- Staff ayant mis le ban :
-- Raison du bannissement :
-- Durée du ban :
-- Ban Discord / Jeu :
-
-## 📝 Explications
-- Pourquoi avez-vous été banni selon vous ?
-- Pensez-vous que le ban était justifié ?
-- Expliquez votre version des faits :
-
-## 🙏 Demande de deban
-- Pourquoi devrions-nous vous débannir ?
-
-## 📸 Preuves
-- Screenshots :
-- Vidéos :
-`,
-
-    Partenariat: `# 🤝 Formulaire de Demande Partenariat
-
-- Nom du serveur :
-- Fondateur :
-- Nombre de membres :
-- Date de création :
-
-- Décrivez votre serveur :
-- Vos activités :
-
-- Pourquoi ce partenariat ?
-- Qu'apporterez-vous ?
-
-- Réseaux sociaux :
-- Informations supplémentaires :
-`,
-
-    "Demande RP": `# 🏢 Formulaire Création d’Entreprise
-
-🏷️ Nom de l’entreprise :
-
-🛠️ Activité :
-
-📍 Adresse :
-
-📞 Téléphone :
-
-👤 Nom / Prénom :
-
-🎂 Âge :
-
-📝 Description :
-`,
-
-    Animation: `🎉 DEMANDE D'ÉVÈNEMENT
-
-Pseudo Discord :
-
-Nom de l’évènement :
-
-Date :
-
-Heure :
-
-Durée :
-
-Type :
-
-Présentation :
-
-Activités prévues :
-
-Nombre de participants :
-
-Besoins particuliers :
-`,
-
-    "Report Joueur": `# 🎮 Formulaire Report Joueur
-
-Pseudo Roblox :
-
-ID Roblox :
-
-Pseudo Discord :
-
-Nom du joueur :
-
-Date :
-
-Que fait le joueur ?
-
-Type :
-- Freekill
-- Troll
-- Insultes
-- Cheat
-
-Preuves :
-`,
-
-    "Report Staff": `# 📋 Formulaire Report Staff
-
-Pseudo Roblox :
-
-Pseudo Discord :
-
-Nom du staff :
-
-Grade :
-
-Date :
-
-Explication :
-
-Preuves :
-
-Raison :
-- Abus de pouvoir
-- Manque de respect
-- Troll
-- Favoritisme
-`
-};
-
-client.on("interactionCreate", async interaction => {
-        // ================= CRÉATION DU TICKET =================
-
-    if (
-        interaction.isStringSelectMenu() &&
-        interaction.customId === "ticket_menu"
-    ) {
-
-        const raison = interaction.values[0];
-
-        const dejaOuvert =
-            interaction.guild.channels.cache.find(
-                c =>
-                    c.parentId === TICKET_CATEGORY &&
-                    c.topic === interaction.user.id
-            );
-
-        if (dejaOuvert) {
-            return interaction.reply({
-                content: `❌ Tu as déjà un ticket ouvert : ${dejaOuvert}`,
-                ephemeral: true
-            });
-        }
-
-        let ticketName;
-
-        switch (raison) {
-            case "Partenariat":
-                ticketName = `🤝・${interaction.user.username}`;
-                break;
-
-            case "Demande RP":
-                ticketName = `🏢・${interaction.user.username}`;
-                break;
-
-            case "Animation":
-                ticketName = `🎭・${interaction.user.username}`;
-                break;
-
-            case "Fondation":
-                ticketName = `☎️・${interaction.user.username}`;
-                break;
-
-            case "Report Joueur":
-                ticketName = `⚠️・${interaction.user.username}`;
-                break;
-
-            case "Report Staff":
-                ticketName = `🛡️・${interaction.user.username}`;
-                break;
-
-            case "Deban":
-                ticketName = `🔓・${interaction.user.username}`;
-                break;
-
-            case "Recrutement":
-                ticketName = `👮・${interaction.user.username}`;
-                break;
-
-            default:
-                ticketName = `❓・${interaction.user.username}`;
-        }
-
-        const channel =
-            await interaction.guild.channels.create({
-                name: ticketName,
-                type: ChannelType.GuildText,
-                parent: TICKET_CATEGORY,
-                topic: interaction.user.id,
-
-                permissionOverwrites: [
-                    {
-                        id: interaction.guild.id,
-                        deny: [
-                            PermissionsBitField.Flags.ViewChannel
-                        ]
-                    },
-                    {
-                        id: interaction.user.id,
-                        allow: [
-                            PermissionsBitField.Flags.ViewChannel,
-                            PermissionsBitField.Flags.SendMessages
-                        ]
-                    },
-                    {
-                        id: STAFF_ROLE,
-                        allow: [
-                            PermissionsBitField.Flags.ViewChannel,
-                            PermissionsBitField.Flags.SendMessages
-                        ]
-                    }
-                ]
-            });
-
-        ticketOwners[channel.id] =
-            interaction.user.id;
-
-        ticketReasons[channel.id] =
-            raison;
-
-        closedTickets[channel.id] =
-            false;
-
-        const buttons =
-            new ActionRowBuilder()
-                .addComponents(
-                    new ButtonBuilder()
-                        .setCustomId("claim")
-                        .setLabel("🎫 Claim")
-                        .setStyle(ButtonStyle.Success),
-
-                    new ButtonBuilder()
-                        .setCustomId("close")
-                        .setLabel("🔒 Fermer")
-                        .setStyle(ButtonStyle.Danger)
-                );
-
-        const embed =
-            new EmbedBuilder()
-                .setColor("#00ff66")
-                .setTitle("🎫 Ticket Martinique RP")
-                .setDescription(
-                    `Bienvenue ${interaction.user}
-
-📁 Raison : **${raison}**
-
-👮 Un membre du staff prendra votre ticket en charge.
-
-📝 Merci de décrire votre demande.
-
-📌 Commandes Staff :
-
-• !add @membre
-• !remove @membre
-• !rename nom`
-                )
-                .setFooter({
-                    text: "Martinique RP"
-                })
-                .setTimestamp();
-
-        await channel.send({
-            content: `<@&${STAFF_ROLE}>`,
-            embeds: [embed],
-            components: [buttons]
-        });
-
-        if (forms[raison]) {
-            await channel.send(forms[raison]);
-        }
-
-        await interaction.reply({
-            content: `✅ Ton ticket a été créé : ${channel}`,
-            ephemeral: true
-        });
-    }
-        // ================= CLAIM =================
-
-    if (
-        interaction.isButton() &&
-        interaction.customId === "claim"
-    ) {
-
-        if (
-            !interaction.member.roles.cache.has(
-                STAFF_ROLE
-            )
-        ) {
-            return interaction.reply({
-                content: "❌ Seul le staff peut claim un ticket.",
-                ephemeral: true
-            });
-        }
-
-        if (claimedBy[interaction.channel.id]) {
-            return interaction.reply({
-                content: `❌ Ce ticket est déjà claim par <@${claimedBy[interaction.channel.id]}>.`,
-                ephemeral: true
-            });
-        }
-
-        claimedBy[interaction.channel.id] =
-            interaction.user.id;
-
-        return interaction.reply(
-            `🎫 ${interaction.user} a pris ce ticket en charge.`
-        );
-    }
-
-    // ================= FERMER =================
-
-    if (
-        interaction.isButton() &&
-        interaction.customId === "close"
-    ) {
-
-        const owner =
-            ticketOwners[interaction.channel.id];
-
-        const isOwner =
-            interaction.user.id === owner;
-
-        const isStaff =
-            interaction.member.roles.cache.has(
-                STAFF_ROLE
-            );
-
-        if (!isOwner && !isStaff) {
-            return interaction.reply({
-                content:
-                    "❌ Tu ne peux pas fermer ce ticket.",
-                ephemeral: true
-            });
-        }
-
-        closedTickets[
-            interaction.channel.id
-        ] = true;
-
-        await interaction.channel.permissionOverwrites.edit(
-            owner,
-            {
-                SendMessages: false
-            }
-        );
-
-        const closeButtons =
-            new ActionRowBuilder()
-                .addComponents(
-                    new ButtonBuilder()
-                        .setCustomId("reopen")
-                        .setLabel("🔓 Réouvrir")
-                        .setStyle(
-                            ButtonStyle.Success
-                        ),
-
-                    new ButtonBuilder()
-                        .setCustomId("delete")
-                        .setLabel("🗑️ Supprimer")
-                        .setStyle(
-                            ButtonStyle.Danger
-                        )
-                );
-
-        return interaction.reply({
-            content:
-                "🔒 Le ticket a été fermé.\n\nLe créateur ne peut plus parler.",
-            components: [closeButtons]
-        });
-    }
-
-    // ================= RÉOUVRIR =================
-
-    if (
-        interaction.isButton() &&
-        interaction.customId === "reopen"
-    ) {
-
-        const owner =
-            ticketOwners[interaction.channel.id];
-
-        const isOwner =
-            interaction.user.id === owner;
-
-        const isStaff =
-            interaction.member.roles.cache.has(
-                STAFF_ROLE
-            );
-
-        if (!isOwner && !isStaff) {
-            return interaction.reply({
-                content:
-                    "❌ Tu ne peux pas réouvrir ce ticket.",
-                ephemeral: true
-            });
-        }
-
-        closedTickets[
-            interaction.channel.id
-        ] = false;
-
-        await interaction.channel.permissionOverwrites.edit(
-            owner,
-            {
-                SendMessages: true
-            }
-        );
-
-        return interaction.reply(
-            "🔓 Le ticket a été réouvert."
-        );
-    }
-
-    // ================= SUPPRIMER =================
-
-    if (
-        interaction.isButton() &&
-        interaction.customId === "delete"
-    ) {
-
-        if (
-            !interaction.member.roles.cache.has(
-                STAFF_ROLE
-            )
-        ) {
-            return interaction.reply({
-                content:
-                    "❌ Seul le staff peut supprimer un ticket.",
-                ephemeral: true
-            });
-        }
-
-        const confirmRow =
-            new ActionRowBuilder()
-                .addComponents(
-                    new ButtonBuilder()
-                        .setCustomId(
-                            "confirm_delete"
-                        )
-                        .setLabel("✅ Confirmer")
-                        .setStyle(
-                            ButtonStyle.Danger
-                        ),
-
-                    new ButtonBuilder()
-                        .setCustomId(
-                            "cancel_delete"
-                        )
-                        .setLabel("❌ Annuler")
-                        .setStyle(
-                            ButtonStyle.Secondary
-                        )
-                );
-
-        return interaction.reply({
-            content:
-                "⚠️ Confirmer la suppression du ticket ?",
-            components: [confirmRow],
-            ephemeral: true
-        });
-    }
-
-    // ================= ANNULER =================
-
-    if (
-        interaction.isButton() &&
-        interaction.customId === "cancel_delete"
-    ) {
-
-        return interaction.reply({
-            content:
-                "❌ Suppression annulée.",
-            ephemeral: true
-        });
-    }
-
-    // ================= CONFIRMER =================
-
-    if (
-        interaction.isButton() &&
-        interaction.customId === "confirm_delete"
-    ) {
-
-        const logs =
-            interaction.guild.channels.cache.get(
-                LOG_CHANNEL
-            );
-
-        if (logs) {
-
-            const logEmbed =
-                new EmbedBuilder()
-                    .setColor("Red")
-                    .setTitle(
-                        "📜 Ticket supprimé"
-                    )
-                    .addFields(
-                        {
-                            name: "👤 Utilisateur",
-                            value:
-                                `<@${ticketOwners[interaction.channel.id]}>`
-                        },
-                        {
-                            name: "📁 Raison",
-                            value:
-                                ticketReasons[interaction.channel.id]
-                        },
-                        {
-                            name: "🎫 Claim",
-                            value:
-                                claimedBy[interaction.channel.id]
-                                    ? `<@${claimedBy[interaction.channel.id]}>`
-                                    : "Aucun"
-                        },
-                        {
-                            name: "🗑️ Supprimé par",
-                            value:
-                                `${interaction.user}`
-                        }
-                    )
-                    .setTimestamp();
-
-            logs.send({
-                embeds: [logEmbed]
-            });
-        }
-
-        delete claimedBy[
-            interaction.channel.id
-        ];
-
-        delete ticketOwners[
-            interaction.channel.id
-        ];
-
-        delete ticketReasons[
-            interaction.channel.id
-        ];
-
-        delete closedTickets[
-            interaction.channel.id
-        ];
-
-        await interaction.reply(
-            "🗑️ Suppression du ticket dans 3 secondes..."
-        );
-
-        setTimeout(async () => {
-            await interaction.channel.delete();
-        }, 3000);
-    }
-});
-
 client.on("messageCreate", async message => {
 
-    console.log("Message reçu :", message.content);
-
     if (message.author.bot) return;
-        // ================= !PANEL =================
 
     if (
         message.content === "!panel" &&
@@ -618,35 +51,22 @@ client.on("messageCreate", async message => {
 
         const embed = new EmbedBuilder()
             .setColor("#2ECC71")
-            .setTitle("🎫 Ticket Martinique RP")
+            .setTitle("🎫 Support Martinique RP")
             .setDescription(`
-Bienvenue dans les tickets de **Martinique RP** ✨
-
-Nos staffs sont disponibles pour vous aider.
-
-**Motifs disponibles :**
-
-🤝 Demande Partenariat
-
-🏢 Demande RP
-↳ Création d'entreprise
-
-🎭 Proposition d'animation
-
-☎️ Contactez la Fondation
-
-⚠️ Report Joueur
-
-🛡️ Report Staff
-
-🔓 Demande Deban
-
-👮 Recrutement Staff
-
-❓ Autres
+Bienvenue dans le système de tickets.
 
 Sélectionnez la catégorie correspondant à votre demande.
-`)
+
+🤝 Partenariat
+🏢 Demande RP
+🎭 Animation
+☎️ Fondation
+⚠️ Report Joueur
+🛡️ Report Staff
+🔓 Demande Deban
+👮 Recrutement
+❓ Autres
+            `)
             .setFooter({
                 text: "Martinique RP • Support"
             })
@@ -654,10 +74,10 @@ Sélectionnez la catégorie correspondant à votre demande.
 
         const menu = new StringSelectMenuBuilder()
             .setCustomId("ticket_menu")
-            .setPlaceholder("Choisissez une raison")
+            .setPlaceholder("Choisissez une catégorie")
             .addOptions([
                 {
-                    label: "Demande Partenariat",
+                    label: "Partenariat",
                     value: "Partenariat",
                     emoji: "🤝"
                 },
@@ -667,12 +87,12 @@ Sélectionnez la catégorie correspondant à votre demande.
                     emoji: "🏢"
                 },
                 {
-                    label: "Proposition d'animation",
+                    label: "Animation",
                     value: "Animation",
                     emoji: "🎭"
                 },
                 {
-                    label: "Contactez la Fondation",
+                    label: "Fondation",
                     value: "Fondation",
                     emoji: "☎️"
                 },
@@ -687,12 +107,12 @@ Sélectionnez la catégorie correspondant à votre demande.
                     emoji: "🛡️"
                 },
                 {
-                    label: "Demande Deban",
+                    label: "Deban",
                     value: "Deban",
                     emoji: "🔓"
                 },
                 {
-                    label: "Recrutement Staff",
+                    label: "Recrutement",
                     value: "Recrutement",
                     emoji: "👮"
                 },
@@ -703,115 +123,370 @@ Sélectionnez la catégorie correspondant à votre demande.
                 }
             ]);
 
-        const row =
-            new ActionRowBuilder()
-                .addComponents(menu);
+        const row = new ActionRowBuilder()
+            .addComponents(menu);
 
         await message.channel.send({
             embeds: [embed],
             components: [row]
         });
     }
+});
+client.on("interactionCreate", async interaction => {
 
-    // ================= !ADD =================
+    if (
+        !interaction.isStringSelectMenu() ||
+        interaction.customId !== "ticket_menu"
+    ) return;
 
-    if (message.content.startsWith("!add")) {
+    const dejaOuvert =
+        interaction.guild.channels.cache.find(
+            c =>
+                c.parentId === TICKET_CATEGORY &&
+                c.topic === interaction.user.id
+        );
+
+    if (dejaOuvert) {
+        return interaction.reply({
+            content: `❌ Tu as déjà un ticket ouvert : ${dejaOuvert}`,
+            ephemeral: true
+        });
+    }
+
+    let ticketName;
+
+    switch (interaction.values[0]) {
+
+        case "Partenariat":
+            ticketName = `🤝・${interaction.user.username}`;
+            break;
+
+        case "Demande RP":
+            ticketName = `🏢・${interaction.user.username}`;
+            break;
+
+        case "Animation":
+            ticketName = `🎭・${interaction.user.username}`;
+            break;
+
+        case "Fondation":
+            ticketName = `☎️・${interaction.user.username}`;
+            break;
+
+        case "Report Joueur":
+            ticketName = `⚠️・${interaction.user.username}`;
+            break;
+
+        case "Report Staff":
+            ticketName = `🛡️・${interaction.user.username}`;
+            break;
+
+        case "Deban":
+            ticketName = `🔓・${interaction.user.username}`;
+            break;
+
+        case "Recrutement":
+            ticketName = `👮・${interaction.user.username}`;
+            break;
+
+        default:
+            ticketName = `❓・${interaction.user.username}`;
+    }
+
+    const channel =
+        await interaction.guild.channels.create({
+            name: ticketName,
+            type: ChannelType.GuildText,
+            parent: TICKET_CATEGORY,
+            topic: interaction.user.id,
+
+            permissionOverwrites: [
+                {
+                    id: interaction.guild.id,
+                    deny: [
+                        PermissionsBitField.Flags.ViewChannel
+                    ]
+                },
+                {
+                    id: interaction.user.id,
+                    allow: [
+                        PermissionsBitField.Flags.ViewChannel,
+                        PermissionsBitField.Flags.SendMessages
+                    ]
+                },
+                {
+                    id: STAFF_ROLE,
+                    allow: [
+                        PermissionsBitField.Flags.ViewChannel,
+                        PermissionsBitField.Flags.SendMessages
+                    ]
+                }
+            ]
+        });
+
+    const embed = new EmbedBuilder()
+        .setColor("#2ECC71")
+        .setTitle("🎫 Ticket créé")
+        .setDescription(`
+Bonjour ${interaction.user}.
+
+Un membre du staff viendra vous aider.
+
+Merci de détailler votre demande.
+        `)
+        .setTimestamp();
+
+    const buttons =
+        new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId("claim")
+                    .setLabel("Claim")
+                    .setEmoji("👤")
+                    .setStyle(ButtonStyle.Primary),
+
+                new ButtonBuilder()
+                    .setCustomId("close_confirm")
+                    .setLabel("Fermer")
+                    .setEmoji("🔒")
+                    .setStyle(ButtonStyle.Danger)
+            );
+
+    await channel.send({
+        content: `${interaction.user} <@&${STAFF_ROLE}>`,
+        embeds: [embed],
+        components: [buttons]
+    });
+
+    await interaction.reply({
+        content: `✅ Ticket créé : ${channel}`,
+        ephemeral: true
+    });
+});
+// ================= BOUTONS =================
+
+client.on("interactionCreate", async interaction => {
+
+    if (!interaction.isButton()) return;
+
+    // CLAIM
+
+    if (interaction.customId === "claim") {
 
         if (
-            !message.member.roles.cache.has(
+            !interaction.member.roles.cache.has(
                 STAFF_ROLE
             )
-        ) return;
-
-        const membre =
-            message.mentions.members.first();
-
-        if (!membre) {
-            return message.reply(
-                "❌ Mentionne un membre."
-            );
+        ) {
+            return interaction.reply({
+                content: "❌ Tu n'es pas staff.",
+                ephemeral: true
+            });
         }
 
-        await message.channel.permissionOverwrites.edit(
-            membre.id,
-            {
-                ViewChannel: true,
-                SendMessages: true
+        await interaction.reply({
+            content: `👤 ${interaction.user} a pris en charge ce ticket.`
+        });
+    }
+
+    // FERMER
+
+    if (interaction.customId === "close") {
+
+        if (
+            !interaction.member.roles.cache.has(
+                STAFF_ROLE
+            )
+        ) {
+            return interaction.reply({
+                content: "❌ Tu n'es pas staff.",
+                ephemeral: true
+            });
+        }
+
+        const logChannel =
+            interaction.guild.channels.cache.get(
+                LOG_CHANNEL
+            );
+
+        if (logChannel) {
+
+            const embed = new EmbedBuilder()
+                .setColor("Red")
+                .setTitle("🔒 Ticket fermé")
+                .addFields(
+                    {
+                        name: "Ticket",
+                        value: interaction.channel.name
+                    },
+                    {
+                        name: "Fermé par",
+                        value: interaction.user.tag
+                    }
+                )
+                .setTimestamp();
+
+            await logChannel.send({
+                embeds: [embed]
+            });
+        }
+
+        await interaction.reply(
+            "🔒 Fermeture du ticket dans 5 secondes..."
+        );
+
+        setTimeout(async () => {
+            await interaction.channel.delete();
+        }, 5000);
+    }
+});
+client.on("messageCreate", async message => {
+
+    if (message.author.bot) return;
+
+    if (!message.content.startsWith("!rename"))
+        return;
+
+    if (
+        !message.member.roles.cache.has(
+            STAFF_ROLE
+        )
+    ) {
+        return message.reply(
+            "❌ Tu n'es pas staff."
+        );
+    }
+
+    const args =
+        message.content.split(" ").slice(1);
+
+    const nouveauNom =
+        args.join("-");
+
+    if (!nouveauNom) {
+        return message.reply(
+            "❌ Donne un nom."
+        );
+    }
+
+    await message.channel.setName(
+        nouveauNom
+    );
+
+    message.channel.send(
+        `✏️ Ticket renommé : ${nouveauNom}`
+    );
+});
+client.on("interactionCreate", async interaction => {
+
+    if (!interaction.isButton()) return;
+
+    // Confirmation fermeture
+
+    if (interaction.customId === "close_confirm") {
+
+        const row =
+            new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId("close_ticket")
+                        .setLabel("Confirmer")
+                        .setStyle(ButtonStyle.Danger),
+
+                    new ButtonBuilder()
+                        .setCustomId("cancel_close")
+                        .setLabel("Annuler")
+                        .setStyle(ButtonStyle.Secondary)
+                );
+
+        return interaction.reply({
+            content: "⚠️ Confirmer la fermeture du ticket ?",
+            components: [row],
+            ephemeral: true
+        });
+    }
+
+    if (interaction.customId === "cancel_close") {
+        return interaction.update({
+            content: "❌ Fermeture annulée.",
+            components: []
+        });
+    }
+
+    if (interaction.customId === "close_ticket") {
+
+        const messages =
+            await interaction.channel.messages.fetch({
+                limit: 100
+            });
+
+        const transcript =
+            messages.reverse()
+                .map(m =>
+                    `[${m.author.tag}] : ${m.content}`
+                )
+                .join("\n");
+
+        const logChannel =
+            interaction.guild.channels.cache.get(
+                LOG_CHANNEL
+            );
+
+        if (logChannel) {
+
+            const embed = new EmbedBuilder()
+                .setColor("Red")
+                .setTitle("🔒 Ticket fermé")
+                .addFields(
+                    {
+                        name: "Ticket",
+                        value: interaction.channel.name
+                    },
+                    {
+                        name: "Fermé par",
+                        value: interaction.user.tag
+                    }
+                )
+                .setTimestamp();
+
+            await logChannel.send({
+                embeds: [embed]
+            });
+
+            if (transcript.length > 0) {
+                await logChannel.send({
+                    content:
+                        "```" +
+                        transcript.substring(0, 1900) +
+                        "```"
+                });
             }
-        );
-
-        message.channel.send(
-            `✅ ${membre} a été ajouté au ticket.`
-        );
-    }
-
-    // ================= !REMOVE =================
-
-    if (message.content.startsWith("!remove")) {
-
-        if (
-            !message.member.roles.cache.has(
-                STAFF_ROLE
-            )
-        ) return;
-
-        const membre =
-            message.mentions.members.first();
-
-        if (!membre) {
-            return message.reply(
-                "❌ Mentionne un membre."
-            );
         }
 
-        await message.channel.permissionOverwrites.delete(
-            membre.id
-        );
+        try {
 
-        message.channel.send(
-            `❌ ${membre} a été retiré du ticket.`
-        );
-    }
+            const ownerId =
+                interaction.channel.topic;
 
-    // ================= !RENAME =================
+            const user =
+                await client.users.fetch(
+                    ownerId
+                );
 
-    if (message.content.startsWith("!rename")) {
-
-        console.log(
-    message.member.roles.cache.map(r => r.id)
-);
-
-        const args =
-            message.content.split(" ").slice(1);
-
-        const nouveauNom =
-            args.join("-");
-
-        if (!nouveauNom) {
-            return message.reply(
-                "❌ Donne un nouveau nom."
+            await user.send(
+                `🎫 Votre ticket **${interaction.channel.name}** a été fermé.`
             );
-        }
 
-        await message.channel.setName(
-            nouveauNom
-        );
+        } catch {}
 
-        message.channel.send(
-            `✏️ Ticket renommé en : ${nouveauNom}`
-        );
+        await interaction.update({
+            content:
+                "🔒 Ticket fermé dans 5 secondes.",
+            components: []
+        });
+
+        setTimeout(async () => {
+            await interaction.channel.delete();
+        }, 5000);
     }
-});
-
-const express = require("express");
-const app = express();
-
-app.get("/", (req, res) => {
-    res.send("Bot en ligne !");
-});
-
-app.listen(process.env.PORT || 3000, () => {
-    console.log("Serveur web démarré.");
-});
-
-client.login(process.env.TOKEN);
+});client.login(process.env.TOKEN);
